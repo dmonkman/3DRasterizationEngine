@@ -1,18 +1,18 @@
-class Mesh {
-	constructor() {
-		this.vertices = [];
-		this.faces = [];
-	}
-}
+import { Vec3f } from "./Vec3f.js";
 
-// Construct a triange in 3d space
-class Triangle {
+export class Triangle {
+	color: String;
+	vert: Array<Vec3f>;
+	depth: number;
+	normal: Vec3f;
+	midpoint: Vec3f;
+	
 	constructor(x1=0, y1=0, z1=0, x2=0, y2=0, z2=0, x3=0, y3=0, z3=0, color='rgb('+
 	Math.floor(Math.random()*256)+','+
 	Math.floor(Math.random()*256)+','+
 	Math.floor(Math.random()*256)+')') {
 		this.color = color;
-		this.vert = [new Vector3D(x1, y1, z1), new Vector3D(x2, y2, z2), new Vector3D(x3, y3, z3)];
+		this.vert = [new Vec3f(x1, y1, z1), new Vec3f(x2, y2, z2), new Vec3f(x3, y3, z3)];
 		this.normalize();
 		this.midpointcalc();
 		this.depth = (z1 + z2 + z3)/3

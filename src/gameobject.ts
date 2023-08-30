@@ -1,6 +1,12 @@
+import { Vec3f, Axis, Triangle, Mesh } from "./Maths/index.js";
+
 class GameObject{
+	protected position: Vec3f;
+	protected mesh: Mesh;
+	protected color: string;
+	
     constructor(x, y, z, meshFile = null, color = "#00FFAA") {
-		this.position = new Vector3D(x, y, z);
+		this.position = new Vec3f(x, y, z);
 		this.mesh = this.LoadMesh(meshFile);
         this.color = color;
 	} 
@@ -29,7 +35,7 @@ class GameObject{
 		for(var i = 0; i < meshFile.length; i++){
 			line = meshFile[i].split(' ');
 			if(line[0] == 'v'){
-				vertices.push(new Vector3D(parseFloat(line[1]), parseFloat(line[2]), parseFloat(line[3])));
+				vertices.push(new Vec3f(parseFloat(line[1]), parseFloat(line[2]), parseFloat(line[3])));
 			}
 			else if(line[0] == 'f'){
 				faces.push(new Array(parseInt(line[1])-1, parseInt(line[2])-1, parseInt(line[3])-1));

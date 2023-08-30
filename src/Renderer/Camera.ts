@@ -1,12 +1,44 @@
-class Camera {
-	constructor(ctx, canWidth, canHeight, position, direction, up){
-		this.ctx = ctx;
-		this.screenWidth = canWidth;
-		this.screenHeight = canHeight;
+import { Vec3f, Quaternion, Triangle } from "../Maths/index.js";
+import {Quaternion_Mul_V, Quaternion_Mul_Q, Quaternion_Mul_Q_V, 
+	Vector_CrossProduct, Vector_Normalize, Vector_DotProduct, 
+	Vector_IntersectPlane} from "../Maths/index.js"
 
-		this.position = new Vector3D(position[0], position[1], position[2]);
-		this.direction = new Vector3D(direction[0], direction[1], direction[2]);
-		this.up = new Vector3D(up[0], up[1], up[2]);
+export class Camera {
+	private cvs: HTMLCanvasElement;
+	private cvsWidth: number;
+	private cvsHeight: number;
+	private ctx: CanvasRenderingContext2D;
+
+	private paint: boolean;
+	private clickX: number[] = [];
+	private clickY: number[] = [];
+	private clickDrag: boolean[] = [];
+
+	private position: Vec3f;
+	private direction: Vec3f;
+	private up: Vec3f;
+	private right: Vec3f;
+	private printTris: boolean;
+	private rotation: Quaternion;
+
+	private FOV: number;
+	private midpoints: Array<Vec3f>;
+
+	private aspectRatio: number;
+	private invTanFOV: number;
+	private triangleQueue: Array<Triangle>;
+	private renderQueue: Array<Triangle>;
+	private DEBUG: boolean;
+
+	constructor(position, direction, up){
+		this.cvs = document.getElementById("screen") as HTMLCanvasElement;
+		this.ctx = this.cvs.getContext("2d");
+		this.cvsWidth=this.cvs.width;
+		this.cvsHeight=this.cvs.height;
+
+		this.position = new Vec3f(position[0], position[1], position[2]);
+		this.direction = new Vec3f(direction[0], direction[1], direction[2]);
+		this.up = new Vec3f(up[0], up[1], up[2]);
 		this.right = Vector_CrossProduct(this.up, this.direction)
 		this.printTris = false;
 		this.rotation = new Quaternion(1, 0, 0, 0)
@@ -14,7 +46,7 @@ class Camera {
 		this.FOV = Math.PI/2;
 		this.midpoints = []
 
-		this.aspectRatio = canWidth/canHeight;
+		this.aspectRatio = this.cvsWidth/this.cvsHeight;
 		this.invTanFOV = 1/Math.tan(this.FOV/2);
 		this.triangleQueue = [];
 		this.renderQueue = [];
@@ -132,7 +164,7 @@ class Camera {
 
 	Triangle_ClipAgainstPlane(plane_p, plane_n, in_tri)
 	{
-		var plane_n = Vector_Normalize(plane_n);
+		plane_n = Vector_Normalize(plane_n);
 
 		// Create two temporary storage arrays to classify points either side of plane
 		// If distance sign is positive, point lies on "inside" of plane
@@ -142,7 +174,7 @@ class Camera {
 		// Return signed shortest distance from point to plane, plane normal must be normalized
 		function dist(p)
 		{
-			n = new Vector3D()
+			n = new Vec3f()
 			var n = Vector_Normalize(p);
 			return (plane_n.x * p.x + plane_n.y * p.y + plane_n.z * p.z - Vector_DotProduct(plane_n, plane_p));
 		};
@@ -170,14 +202,14 @@ class Camera {
 		{
 			// All points lie on the outside of plane, so clip whole triangle
 
-			return 0; // No returned triangles are valid
+			return new Array<Triangle>; // No returned triangles are valid
 		}
 
 		if (nInsidePointCount == 3)
 		{
 			// All points lie on the inside of plane, so allow the triangle to pass
 
-			return 1; // Just the one returned original triangle is valid
+			return in_tri; // Just the one returned original triangle is valid
 		}
 
 		if (nInsidePointCount == 1 && nOutsidePointCount == 2)
@@ -231,16 +263,16 @@ class Camera {
 		var tri_projected = new Triangle()
 
 		// Project the points onto the plane 1 unit in front of the camera
-		tri_projected.vert[0] = Vector_IntersectPlane(new Vector3D(0.0, 0.0, 1.0), new Vector3D(0.0, 0.0, 1.0), new Vector3D(0.0, 0.0, 0.0), tri.vert[0])
-		tri_projected.vert[1] = Vector_IntersectPlane(new Vector3D(0.0, 0.0, 1.0), new Vector3D(0.0, 0.0, 1.0), new Vector3D(0.0, 0.0, 0.0), tri.vert[1])
-		tri_projected.vert[2] = Vector_IntersectPlane(new Vector3D(0.0, 0.0, 1.0), new Vector3D(0.0, 0.0, 1.0), new Vector3D(0.0, 0.0, 0.0), tri.vert[2])
+		tri_projected.vert[0] = Vector_IntersectPlane(new Vec3f(0.0, 0.0, 1.0), new Vec3f(0.0, 0.0, 1.0), new Vec3f(0.0, 0.0, 0.0), tri.vert[0])
+		tri_projected.vert[1] = Vector_IntersectPlane(new Vec3f(0.0, 0.0, 1.0), new Vec3f(0.0, 0.0, 1.0), new Vec3f(0.0, 0.0, 0.0), tri.vert[1])
+		tri_projected.vert[2] = Vector_IntersectPlane(new Vec3f(0.0, 0.0, 1.0), new Vec3f(0.0, 0.0, 1.0), new Vec3f(0.0, 0.0, 0.0), tri.vert[2])
 
 		// Scale and set point depth accordingly
 		for (var j = 0; j < 3; j++)
 		{
 			tri_projected.vert[j].z = (tri.vert[j].sub(tri_projected.vert[j])).length()
-			tri_projected.vert[j].x = this.screenWidth*(this.invTanFOV*tri_projected.vert[j].x + 0.5);
-			tri_projected.vert[j].y = this.screenHeight*(0.5 - this.invTanFOV*tri_projected.vert[j].y);
+			tri_projected.vert[j].x = this.cvsWidth*(this.invTanFOV*tri_projected.vert[j].x + 0.5);
+			tri_projected.vert[j].y = this.cvsHeight*(0.5 - this.invTanFOV*tri_projected.vert[j].y);
 		}
 	
 		// Determine average depth of the triangle
@@ -285,19 +317,19 @@ class Camera {
 
 
 		// 2. CLIP THE TRIANGLE AGAINST THE PLANE OF THE SCREEN
-		var tri_clipped = this.Triangle_ClipAgainstPlane(new Vector3D(0.0, 0.0, 1.0), new Vector3D(0.0, 0.0, 10.0), tri_transformed)
+		let tri_clipped : Array<Triangle> = this.Triangle_ClipAgainstPlane(new Vec3f(0.0, 0.0, 1.0), new Vec3f(0.0, 0.0, 10.0), tri_transformed)
 		
 		// tri_clipped = [tri_transformed]
 
 		// IF THE TRI IS COMPLETELY OFF SCREEN, IGNORE IT
-		if(tri_clipped == 0){
+		if(tri_clipped.length == 0){
 			return 0;
 		}
 
 		// 3. PROJECT THE TRIANGLE ONTO THE SCREEN
 
 		// IF THE TRI IS ALREADY VALID, USE THE ORIGINAL TRANSFORMED TRIANGLE
-		else if(tri_clipped == 1){
+		else if(tri_clipped.length == 1){
 			this.Triangle_ProjectAndQueue(tri_transformed)
 		}
 		
@@ -333,7 +365,7 @@ class Camera {
 	}
 	
 	draw(){
-		var draws = 0;
+		let draws = 0;
 		// Loop through all transformed, viewed, projected, and sorted triangles
 		
 		// Clip Viewed Triangle against near plane, this could form two additional
@@ -343,7 +375,7 @@ class Camera {
 		while (this.triangleQueue.length > 0)
 		{
 			var test = this.triangleQueue.shift()
-			var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vector3D(0.0, 0.0, 1.0), new Vector3D(0.0, 0.0, 1.0), test);	
+			var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vec3f(0.0, 0.0, 1.0), new Vec3f(0.0, 0.0, 1.0), test);	
 
 			// 1. IF THE TRI IS COMPLETELY OFF SCREEN, IGNORE IT
 			if(TrisToAdd == 0){
@@ -379,10 +411,10 @@ class Camera {
 
 					switch (p)
 					{
-						case 0:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vector3D(0.0, 0.0, 0.0), 				new Vector3D( 0.0, 1.0, 0.0 ), test); break;
-						case 1:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vector3D(0.0, this.screenHeight-1, 0.0 ), 	new Vector3D( 0.0,-1.0, 0.0 ), test); break;
-						case 2:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vector3D(0.0, 0.0, 0.0 ), 				new Vector3D( 1.0, 0.0, 0.0), test); break;
-						case 3:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vector3D(this.screenWidth-1, 0.0, 0.0 ), 	new Vector3D(-1.0, 0.0, 0.0 ), test); break;
+						case 0:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vec3f(0.0, 0.0, 0.0), 				new Vec3f( 0.0, 1.0, 0.0 ), test); break;
+						case 1:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vec3f(0.0, this.cvsHeight-1, 0.0 ), 	new Vec3f( 0.0,-1.0, 0.0 ), test); break;
+						case 2:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vec3f(0.0, 0.0, 0.0 ), 				new Vec3f( 1.0, 0.0, 0.0), test); break;
+						case 3:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vec3f(this.cvsWidth-1, 0.0, 0.0 ), 	new Vec3f(-1.0, 0.0, 0.0 ), test); break;
 					}
 
 					// 1. IF THE TRI IS COMPLETELY OFF SCREEN, IGNORE IT
@@ -416,7 +448,7 @@ class Camera {
 
 		// How many triangles did we draw total?
 		this.ctx.fillStyle = '#000000'
-		this.ctx.fillText(draws, 10, 220);
+		this.ctx.fillText(draws.toString(), 10, 220);
 		return 0;
 	}
 }

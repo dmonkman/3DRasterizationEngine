@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+	<head>
+		<base href=".">
+		<title>3D Rasterization Engine v1.0</title>
+		<!-- <link href="style.css" rel="stylesheet" type="text/css"/> -->
+		<!-- <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script> -->
+		<script>var exports = {};</script>
+		<script type="module" src="./bin/app.js" ></script>
+	</head>
+	<body>
+		<canvas id="screen" width="1000px" height="667px ">
+			<p>The canvas could not be loaded.</p>
+		</canvas>
+	</body>
+
+	<!-- Including style here because there isn't much style. Will move to styles.css when integrating into webpage -->
+	<style>
+		* {margin: 0; padding: 0; }
+
+			html, body{
+			height: 100%;
+			width: 100%;
+			position: center;
+			}
+
+			canvas {
+			display: block;
+			}
+
+			#screen {
+			background-color: #000000;
+		}
+	</style>
+</html>
