@@ -4,31 +4,31 @@ import {Quaternion_Mul_V, Quaternion_Mul_Q, Quaternion_Mul_Q_V,
 	Vector_IntersectPlane} from "../Maths/index.js"
 
 export class Camera {
-	private cvs: HTMLCanvasElement;
-	private cvsWidth: number;
-	private cvsHeight: number;
-	private ctx: CanvasRenderingContext2D;
+	public cvs: HTMLCanvasElement;
+	public cvsWidth: number;
+	public cvsHeight: number;
+	public ctx: CanvasRenderingContext2D;
 
-	private paint: boolean;
-	private clickX: number[] = [];
-	private clickY: number[] = [];
-	private clickDrag: boolean[] = [];
+	public paint: boolean;
+	public clickX: number[] = [];
+	public clickY: number[] = [];
+	public clickDrag: boolean[] = [];
 
-	private position: Vec3f;
-	private direction: Vec3f;
-	private up: Vec3f;
-	private right: Vec3f;
-	private printTris: boolean;
-	private rotation: Quaternion;
+	public position: Vec3f;
+	public direction: Vec3f;
+	public up: Vec3f;
+	public right: Vec3f;
+	public printTris: boolean;
+	public rotation: Quaternion;
 
-	private FOV: number;
-	private midpoints: Array<Vec3f>;
+	public FOV: number;
+	public midpoints: Array<Vec3f>;
 
-	private aspectRatio: number;
-	private invTanFOV: number;
-	private triangleQueue: Array<Triangle>;
-	private renderQueue: Array<Triangle>;
-	private DEBUG: boolean;
+	public aspectRatio: number;
+	public invTanFOV: number;
+	public triangleQueue: Array<Triangle>;
+	public renderQueue: Array<Triangle>;
+	public DEBUG: boolean;
 
 	constructor(position, direction, up){
 		this.cvs = document.getElementById("screen") as HTMLCanvasElement;
