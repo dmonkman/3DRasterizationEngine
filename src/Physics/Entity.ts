@@ -1,9 +1,9 @@
 import { Vec3f, Axis, Triangle, Mesh } from "../Maths/index.js";
 
 export class Entity{
-	protected position: Vec3f;
-	protected mesh: Mesh;
-	protected color: string;
+	position: Vec3f;
+	mesh: Mesh;
+	color: string;
 	
     constructor(x, y, z, meshFile = null, color = "#00FFAA") {
 		this.position = new Vec3f(x, y, z);

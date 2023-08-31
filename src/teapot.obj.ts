@@ -1,7 +1,7 @@
 // Javascript doesn't easily allow for reading from .txt(or .obj) files prior to user input
 // this is the easiest way to incorporate them without additional libraries
 
-var teapotobj = `
+export let teapotobj = `
 v -3.000000 1.800000 0.000000
 v -2.991600 1.800000 -0.081000
 v -2.991600 1.800000 0.081000

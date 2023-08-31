@@ -2,63 +2,186 @@ import { Vec3f, Quaternion, Triangle } from "../Maths/index.js";
 import {Quaternion_Mul_V, Quaternion_Mul_Q, Quaternion_Mul_Q_V, 
 	Vector_CrossProduct, Vector_Normalize, Vector_DotProduct, 
 	Vector_IntersectPlane} from "../Maths/index.js"
+import { Entity } from "../Physics/Entity.js";
 
 export class Camera {
-	public cvs: HTMLCanvasElement;
-	public cvsWidth: number;
-	public cvsHeight: number;
-	public ctx: CanvasRenderingContext2D;
+	private cvs: HTMLCanvasElement;
+	private cvsWidth: number;
+	private cvsHeight: number;
+	private ctx: CanvasRenderingContext2D;
 
-	public paint: boolean;
-	public clickX: number[] = [];
-	public clickY: number[] = [];
-	public clickDrag: boolean[] = [];
+	private paint: boolean;
+	private clickX: number[] = [];
+	private clickY: number[] = [];
+	private clickDrag: boolean[] = [];
 
-	public position: Vec3f;
-	public direction: Vec3f;
-	public up: Vec3f;
-	public right: Vec3f;
-	public printTris: boolean;
-	public rotation: Quaternion;
+	private position: Vec3f;
+	private direction: Vec3f;
+	private up: Vec3f;
+	private right: Vec3f;
+	private printTris: boolean;
+	private rotation: Quaternion;
 
-	public FOV: number;
-	public midpoints: Array<Vec3f>;
+	private FOV: number;
+	private midpoints: Array<Vec3f>;
 
-	public aspectRatio: number;
-	public invTanFOV: number;
-	public triangleQueue: Array<Triangle>;
-	public renderQueue: Array<Triangle>;
+	private aspectRatio: number;
+	private invTanFOV: number;
+	private triangleQueue: Array<Triangle>;
+	private renderQueue: Array<Triangle>;
 	public DEBUG: boolean;
 
-	constructor(position, direction, up){
+	private entities : Array<Entity>;
+	
+	tickRate : number;
+	tickTime : number;
+	frameRate : number;		
+	frameTime : number;
+	tFrameStart : number;
+	tFrameEnd: number;
+	tTickStart : number;
+	tTickEnd : number;
+	tPrevDraw : number;
+	tSinceLastFrame : number;
+	ticks : number;
+	frames : number;
+
+	constructor(position : Vec3f, direction : Vec3f, up : Vec3f){
 		this.cvs = document.getElementById("screen") as HTMLCanvasElement;
 		this.ctx = this.cvs.getContext("2d");
 		this.cvsWidth=this.cvs.width;
 		this.cvsHeight=this.cvs.height;
 
-		this.position = new Vec3f(position[0], position[1], position[2]);
-		this.direction = new Vec3f(direction[0], direction[1], direction[2]);
-		this.up = new Vec3f(up[0], up[1], up[2]);
+		this.entities = new Array<Entity>;
+		this.tickRate = 10;	
+		this.tickTime = 1000/this.tickRate;	
+		this.frameRate = 60;			
+		this.frameTime = 1000/this.frameRate; 
+		this.tFrameStart = 0;
+		this.tFrameEnd= 0;
+		this.tTickStart = 0;
+		this.tTickEnd = 0;
+		this.tPrevDraw = 0;
+		this.tSinceLastFrame = 0;
+		
+		this.ticks = 0;
+		this.frames = 0;
+		this.printTris = false;
+
+		this.position = position;
+		this.direction = direction;
+		this.up = up;
 		this.right = Vector_CrossProduct(this.up, this.direction)
 		this.printTris = false;
 		this.rotation = new Quaternion(1, 0, 0, 0)
 
 		this.FOV = Math.PI/2;
-		this.midpoints = []
+		this.midpoints = new Array<Vec3f>;
 
 		this.aspectRatio = this.cvsWidth/this.cvsHeight;
 		this.invTanFOV = 1/Math.tan(this.FOV/2);
-		this.triangleQueue = [];
-		this.renderQueue = [];
+		this.triangleQueue = new Array<Triangle>;
+		this.renderQueue = new Array<Triangle>;
 		this.ctx.fillStyle = "#FFFFFF";
 		this.DEBUG = false;
 	}
 	Update(){
 
 	}
+	Render(entities : Array<Entity>){
+
+		//Load all triangles into the queue
+		for(let i = 0; i < entities.length; i++){
+			for(var j = 0; j < entities[i].mesh.faces.length; j++){
+				this.Triangle_ProjectAndQueue(entities[i].mesh.faces[j]);
+				//camera.fillTriangle(this.mesh.faces[i]);	
+			}
+		}	
+
+		
+		// Fill the backgrounds
+		this.ctx.clearRect(0, 0, this.cvsWidth, this.cvsHeight);
+		this.ctx.fillStyle = "#FFFFFF";
+		this.ctx.strokeStyle = "#FFFFFF";
+		var grd = this.ctx.createLinearGradient(this.cvsWidth/2, this.cvsHeight, this.cvsWidth/2, 0);
+		grd.addColorStop(1, '#8888DD');
+		grd.addColorStop(0, "white");
+		this.ctx.fillStyle = grd;
+
+
+		this.ctx.fillRect(0, 0, this.cvsWidth, this.cvsHeight);
+		/*
+		var grd = this.ctx.createLinearGradient(cvsWidth/2, cvsHeight/2, cvsWidth/2, cvsHeight);
+		grd.addColorStop(1, '#0000FF');
+		grd.addColorStop(0, "#4444EE");
+		this.ctx.fillStyle = grd;
+		this.ctx.fillRect(0, cvsHeight/2, cvsWidth, cvsHeight);*/
+
+		// Draw all previously queued objects to be rendered
+		this.draw();
+		
+		// Display the current camera position and viewing direction
+		this.ctx.fillStyle = "#000000";
+		this.ctx.fillText("Position: x:" + this.position.x.toFixed(3) + ", y:" + this.position.y.toFixed(3) + ", z:" + this.position.z.toFixed(3), 10, 20);
+		this.ctx.fillText("Direction: x:" + this.direction.x.toFixed(3) + ", y:" + this.direction.y.toFixed(3) + ", z:" + this.direction.z.toFixed(3), 10, 30);
+		this.ctx.fillText("Up: x:" + this.up.x.toFixed(3) + ", y:" + this.up.y.toFixed(3) + ", z:" + this.up.z.toFixed(3), 10, 40);
+		this.ctx.fillText("Right: x:" + this.right.x.toFixed(3) + ", y:" + this.right.y.toFixed(3) + ", z:" + this.right.z.toFixed(3), 10, 50);
+		this.ctx.fillText("Rotation: w:" + this.rotation.w.toFixed(3) + ", x:" + this.rotation.x.toFixed(3) + ", y:" +this.rotation.y.toFixed(3) + ", z:" + this.rotation.z.toFixed(3), 10, 70)
+
+		// Draw a new frame if enough time has passed
+		if(this.tSinceLastFrame >= this.frameTime)
+		{
+			this.tSinceLastFrame -= this.frameTime;
+			this.tFrameEnd = performance.now();		// End time of the frame
+			let prevFrameTime = this.tFrameEnd - this.tFrameStart;
+			this.ctx.fillStyle = "#000000";
+			this.ctx.fillText("Time since last frame: " + prevFrameTime.toFixed(3), 10, 160);
+			this.ctx.fillText("Frame rate: " + (1000/prevFrameTime).toFixed(1), 10, 10);
+			this.tFrameStart = this.tFrameEnd;
+			this.frames++;
+		}
+		this.ticks++;
+		this.ctx.fillStyle = "#000000";
+		this.ctx.fillText("Ticks : " + this.ticks, 10, 100);
+		this.ctx.fillText("Frames : " + this.frames, 10, 110);
+
+					
+		//this.renderTriangles2D();
+		this.ctx.fillText(this.triangleQueue.length.toString(), 10, 200);
+	};
+
+	moveForward(){
+		this.position.addAssign(this.direction.scale(0.2));
+	}
+	moveBackwards(){
+		this.position.subAssign(this.direction.scale(0.2));
+	}
+
+	moveLeft(){
+		this.position.addAssign(this.right.scale(-0.2));
+	}
+	moveRight(){
+		this.position.subAssign(this.right.scale(-0.2));
+	}
+
+
+
+	resetRotation(){
+		var Q = this.rotation
+		this.direction.rotate_origin(2*Math.acos(Q.w), new Vec3f(Q.x, Q.y, Q.z))
+		this.up.rotate_origin(2*Math.acos(Q.w), new Vec3f(Q.x, Q.y, Q.z))
+		this.right.rotate_origin(2*Math.acos(Q.w), new Vec3f(Q.x, Q.y, Q.z))
+		this.rotation = new Quaternion();
+	}
+
+	modifyFOV(angleChangeRadians){
+		this.FOV += angleChangeRadians;
+		this.FOV = Math.min(this.FOV, 5*Math.PI/6);
+		this.invTanFOV = 1/Math.tan(this.FOV/2);
+	}
 
 	// Rotate the camera about it's up axis
-	yaw(angleRads){
+	yaw(angleRads : number){
 		this.direction.normalize();
 		var sinAngle = Math.sin(angleRads/2);
 
@@ -83,7 +206,7 @@ export class Camera {
 	}
 
 	// Roll the camera about it's forward directional axis
-	roll(angleRads){
+	roll(angleRads : number){
 		this.up.normalize();
 		var sinAngle = Math.sin(angleRads/2);
 
@@ -107,7 +230,7 @@ export class Camera {
 	}
 
 	// Pitch the camera up about it's right axis
-	pitch(angleRads){
+	pitch(angleRads : number){
 		this.direction.normalize();
 		var sinAngle = Math.sin(angleRads/2);
 
@@ -164,6 +287,9 @@ export class Camera {
 
 	Triangle_ClipAgainstPlane(plane_p, plane_n, in_tri)
 	{
+		if (in_tri == null){
+			return new Array<Triangle>;
+		}
 		plane_n = Vector_Normalize(plane_n);
 
 		// Create two temporary storage arrays to classify points either side of plane
@@ -340,7 +466,6 @@ export class Camera {
 		}
 	}
 
-
 	// Fill all triangles
 	fillTriangle(Tri) {
 		this.ctx.fillStyle = 'rgb('+
@@ -404,44 +529,49 @@ export class Camera {
 		{
 			// Test the next ready to draw triangle
 			var TrisToTest = [this.triangleQueue.shift()]
-			for (var p = 0; p < 4; p++){
-				if(TrisToTest.length > 0){ 
-					var test = TrisToTest.shift()
-					// Iterate through the TrisToTest queue and test all triangles against the current and future criteria
+			// for (var p = 0; p < 4; p++){
+			// 	if(TrisToTest.length > 0){ 
+			// 		var test = TrisToTest.shift()
+			// 		// Iterate through the TrisToTest queue and test all triangles against the current and future criteria
 
-					switch (p)
-					{
-						case 0:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vec3f(0.0, 0.0, 0.0), 				new Vec3f( 0.0, 1.0, 0.0 ), test); break;
-						case 1:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vec3f(0.0, this.cvsHeight-1, 0.0 ), 	new Vec3f( 0.0,-1.0, 0.0 ), test); break;
-						case 2:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vec3f(0.0, 0.0, 0.0 ), 				new Vec3f( 1.0, 0.0, 0.0), test); break;
-						case 3:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vec3f(this.cvsWidth-1, 0.0, 0.0 ), 	new Vec3f(-1.0, 0.0, 0.0 ), test); break;
-					}
+			// 		switch (p)
+			// 		{
+			// 			case 0:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vec3f(0.0, 0.0, 0.0), 				new Vec3f( 0.0, 1.0, 0.0 ), test); break;
+			// 			case 1:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vec3f(0.0, this.cvsHeight-1, 0.0 ), 	new Vec3f( 0.0,-1.0, 0.0 ), test); break;
+			// 			case 2:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vec3f(0.0, 0.0, 0.0 ), 				new Vec3f( 1.0, 0.0, 0.0), test); break;
+			// 			case 3:	var TrisToAdd = this.Triangle_ClipAgainstPlane(new Vec3f(this.cvsWidth-1, 0.0, 0.0 ), 	new Vec3f(-1.0, 0.0, 0.0 ), test); break;
+			// 		}
 
-					// 1. IF THE TRI IS COMPLETELY OFF SCREEN, IGNORE IT
-					if(TrisToAdd == 0){
-					}
+			// 		// 1. IF THE TRI IS COMPLETELY OFF SCREEN, IGNORE IT
+			// 		if(TrisToAdd == 0){
+			// 		}
 
-					//2. IF THE TRI IS VALID, RE ADD IT TO TEST QUEUE
-					else if(TrisToAdd == 1){
-						TrisToTest.push(test);
-					}
+			// 		//2. IF THE TRI IS VALID, RE ADD IT TO TEST QUEUE
+			// 		else if(TrisToAdd == 1){
+			// 			TrisToTest.push(test);
+			// 		}
 
-					//3. IF THE TRI WAS CLIPPED, TEST IT SOME MORE
-					else{
-						if(TrisToAdd.length == 1) 
-							TrisToTest.push(TrisToAdd[0])
-						else {
-							TrisToTest.push(TrisToAdd[0]); 
-							TrisToTest.push(TrisToAdd[1]);
-						}
-					}
-				}
-			}
+			// 		//3. IF THE TRI WAS CLIPPED, TEST IT SOME MORE
+			// 		else{
+			// 			if(TrisToAdd.length == 1) 
+			// 				TrisToTest.push(TrisToAdd[0])
+			// 			else {
+			// 				TrisToTest.push(TrisToAdd[0]); 
+			// 				TrisToTest.push(TrisToAdd[1]);
+			// 			}
+			// 		}
+			// 	}
+			// }
 
 			// Fill all triangles that passed our tests
 			while(TrisToTest.length > 0){
-				this.fillTriangle(TrisToTest.shift())
-				draws++;
+				let tri = TrisToTest.shift()
+
+			// tri = this.Triangle_WorldTransform(tri);
+				if(tri != null){
+					this.fillTriangle(tri)
+					draws++;
+				}
 			}
 
 		}
