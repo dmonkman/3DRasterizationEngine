@@ -1,68 +1,7 @@
 //By Drayton Monkman, June 2020
-import { Camera } from "./Renderer/index.js";
-import { Vec3f, Quaternion } from "./Maths/index.js";
-import { Entity, Cube, Plane } from "./Physics/index.js";
-import { teapotobj } from "./teapot.obj.js"
-type KeyboardEventNames = 'keydown' | 'keyup';
-
-enum Keys {
-	ZERO = 48,
-	ONE = 49,
-	TWO = 50,
-	THREE = 51,
-	FOUR = 52,
-	FIVE = 53,
-	SIX = 54,
-	SEVEN = 55,
-	EIGHT = 56,
-	NINE = 57,
-	A = 65,
-	B = 66,
-	C = 67,
-	D = 68,
-	E = 69,
-	F = 70,
-	H = 71,
-	G = 72,
-	I = 73,
-	J = 74,
-	K = 75,
-	L = 76,
-	M = 77,
-	N = 78,
-	O = 79,
-	P = 80,
-	Q = 81,
-	R = 82,
-	S = 83,
-	T = 84,
-	U = 85,
-	V = 86,
-	W = 87,
-	X = 88,
-	Y = 89,
-	Z = 90,
-};
-
-let KeyDown = [];	
-
-// Initialize keys
-for(let i = 0; i < 256; i++){
-	KeyDown[i] = false;
-}
-
-
-// Add event listeners for keydown and keyup events
-document.addEventListener("keydown", (event) => {
-    KeyDown[event.keyCode] = true;
-	console.log(event.key + " " + KeyDown[event.keyCode]);
-});
-
-document.addEventListener("keyup", (event) => {
-    KeyDown[event.keyCode] = false;
-	console.log(event.keyCode + " " + KeyDown[event.keyCode]);
-});
-
+import { Camera } from "./Engine/Graphics/index.js";
+import { Vector3 } from "./Maths/index.js";
+import { Entity, Cube, Plane } from "./Engine/Core/Physics/index.js";
 
 class RasterEngine3D{
 	// Components
@@ -91,7 +30,7 @@ class RasterEngine3D{
 	entities : Array<Entity>
 	
 	constructor(){
-		this.mainCamera = new Camera(new Vec3f(0, 2, -10), new Vec3f(0, 0, 1), new Vec3f(0, 1, 0));
+		this.mainCamera = new Camera(new Vector3(0, 2, -10), new Vector3(0, 0, 1), new Vector3(0, 1, 0));
 		this.tickRate = 10;	
 		this.tickTime = 1000/this.tickRate;	
 		this.frameRate = 60;			
@@ -209,9 +148,6 @@ class RasterEngine3D{
 	
 	// Handle all changes to the environment that do not result from input
 	Engine(){
-		//cube1.rotate(-0.01, new Vec3f(1,1,0));
-		
-		
 	}
 
 	loopCount : number = 0;

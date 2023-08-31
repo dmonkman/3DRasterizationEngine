@@ -1,0 +1,29 @@
+{
+  "name": "3drasterizationengine",
+  "version": "1.0.0",
+  "description": "3D rasterization from scratch in TypeScript",
+  "main": "index.js",
+  "bin": {
+    "3drasterizationengine": "bin/app.js"
+  },
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/dmonkman/3DRasterizationEngine.git"
+  },
+  "author": "Drayton Monkman",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dmonkman/3DRasterizationEngine/issues"
+  },
+  "homepage": "https://github.com/dmonkman/3DRasterizationEngine#readme",
+  "devDependencies": {
+    "jest": "^29.6.4",
+    "typescript": "^5.2.2"
+  }
+}
