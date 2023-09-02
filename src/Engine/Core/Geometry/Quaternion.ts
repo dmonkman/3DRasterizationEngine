@@ -1,4 +1,4 @@
-import { Vector4 } from "../Basic/Vector4";
+import { Vector4 } from "../Structs/Vector4.js";
 
 export class Quaternion extends Vector4 {
 	w: number;

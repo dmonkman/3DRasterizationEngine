@@ -1,4 +1,4 @@
-import { Vector3 } from "../Basic/Vector3.js";
+import { Vector3 } from "../Structs/index.js";
 
 export class Axis {
 	position: Vector3;

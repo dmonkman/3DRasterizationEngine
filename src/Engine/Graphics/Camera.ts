@@ -1,8 +1,7 @@
-import { Vector3, Quaternion, Triangle } from "../../Maths/index.js";
-import {Quaternion_Mul_V, Quaternion_Mul_Q, Quaternion_Mul_Q_V, 
-	Vector_CrossProduct, Vector_Normalize, Vector_DotProduct, 
-	Vector_IntersectPlane} from "../../Maths/index.js"
-import { Entity } from "../../Physics/Entity.js";
+import { Vector3 } from "../Core/Structs/index.js";
+import { Quaternion, Triangle } from "../Core/Geometry/index.js";
+import { LinearAlgebra } from "../Core/Functions/index.js"
+import { Entity } from "../Physics/Entity.js";
 
 export class Camera {
 	private cvs: HTMLCanvasElement;
@@ -52,7 +51,7 @@ export class Camera {
 		this.cvsWidth=this.cvs.width;
 		this.cvsHeight=this.cvs.height;
 
-		this.entities = new Array<Entity>;
+		this.entities = new Array<Entity>();
 		this.tickRate = 10;	
 		this.tickTime = 1000/this.tickRate;	
 		this.frameRate = 60;			
@@ -71,21 +70,21 @@ export class Camera {
 		this.position = position;
 		this.direction = direction;
 		this.up = up;
-		this.right = Vector_CrossProduct(this.up, this.direction)
+		this.right = LinearAlgebra.Vector3_CrossProduct(this.up, this.direction)
 		this.printTris = false;
-		this.rotation = new Quaternion(1, 0, 0, 0)
+		this.rotation = new Quaternion(0, 0, 0, 1)
 
 		this.FOV = Math.PI/2;
-		this.midpoints = new Array<Vector3>;
+		this.midpoints = new Array<Vector3>();
 
 		this.aspectRatio = this.cvsWidth/this.cvsHeight;
 		this.invTanFOV = 1/Math.tan(this.FOV/2);
-		this.triangleQueue = new Array<Triangle>;
-		this.renderQueue = new Array<Triangle>;
+		this.triangleQueue = new Array<Triangle>();
+		this.renderQueue = new Array<Triangle>();
 		this.ctx.fillStyle = "#FFFFFF";
 		this.DEBUG = false;
 	}
-	Update(){
+	update(){
 
 	}
 	Render(entities : Array<Entity>){
@@ -98,6 +97,8 @@ export class Camera {
 			}
 		}	
 
+
+
 		// Fill the backgrounds
 		this.ctx.clearRect(0, 0, this.cvsWidth, this.cvsHeight);
 		this.ctx.fillStyle = "#FFFFFF";
@@ -107,14 +108,7 @@ export class Camera {
 		grd.addColorStop(0, "white");
 		this.ctx.fillStyle = grd;
 
-
 		this.ctx.fillRect(0, 0, this.cvsWidth, this.cvsHeight);
-		/*
-		var grd = this.ctx.createLinearGradient(cvsWidth/2, cvsHeight/2, cvsWidth/2, cvsHeight);
-		grd.addColorStop(1, '#0000FF');
-		grd.addColorStop(0, "#4444EE");
-		this.ctx.fillStyle = grd;
-		this.ctx.fillRect(0, cvsHeight/2, cvsWidth, cvsHeight);*/
 
 		// Draw all previously queued objects to be rendered
 		this.draw();
@@ -150,26 +144,23 @@ export class Camera {
 	};
 
 	moveForward(){
-		this.position.addAssign(this.direction.scale(0.2));
+		LinearAlgebra.Vector3_Add(this.position, LinearAlgebra.Vector3_Scale(this.direction, 0.2));
 	}
 	moveBackwards(){
-		this.position.subAssign(this.direction.scale(0.2));
+		LinearAlgebra.Vector3_Sub(this.position, LinearAlgebra.Vector3_Scale(this.direction, 0.2));
 	}
-
 	moveLeft(){
-		this.position.addAssign(this.right.scale(-0.2));
+		LinearAlgebra.Vector3_Add(this.position, LinearAlgebra.Vector3_Scale(this.right, 0.2));
 	}
 	moveRight(){
-		this.position.subAssign(this.right.scale(-0.2));
+		LinearAlgebra.Vector3_Sub(this.position, LinearAlgebra.Vector3_Scale(this.right, 0.2));
 	}
-
-
 
 	resetRotation(){
 		var Q = this.rotation
-		this.direction.rotate_origin(2*Math.acos(Q.w), new Vector3(Q.x, Q.y, Q.z))
-		this.up.rotate_origin(2*Math.acos(Q.w), new Vector3(Q.x, Q.y, Q.z))
-		this.right.rotate_origin(2*Math.acos(Q.w), new Vector3(Q.x, Q.y, Q.z))
+		this.direction = LinearAlgebra.Vector3_RotateAboutOrigin(this.direction, 2*Math.acos(Q.w), new Vector3(Q.x, Q.y, Q.z))
+		this.up = LinearAlgebra.Vector3_RotateAboutOrigin(this.up, 2*Math.acos(Q.w), new Vector3(Q.x, Q.y, Q.z));
+		this.right = LinearAlgebra.Vector3_RotateAboutOrigin(this.right, 2*Math.acos(Q.w), new Vector3(Q.x, Q.y, Q.z));
 		this.rotation = new Quaternion();
 	}
 
@@ -189,19 +180,19 @@ export class Camera {
 		var Qconj = Q.Qconjugate();
 
 		// Cumulate the rotation
-		this.rotation.Qmul(Qconj)
+		this.rotation = LinearAlgebra.Quaternion_Mul_Q(this.rotation, Qconj);
 
 		// Perform the rotation
 		var Qconj = Q.Qconjugate();
-		var Q1 = Quaternion_Mul_V(Q, this.direction);
-		Q = Quaternion_Mul_Q(Q1, Qconj);
+		var Q1 = LinearAlgebra.Quaternion_Mul_V(Q, this.direction);
+		Q = LinearAlgebra.Quaternion_Mul_Q(Q1, Qconj);
 		Q.normalize()
 		this.direction.x = Q.x;
 		this.direction.y = Q.y;
 		this.direction.z = Q.z;
 
 		// Update the right vector
-		this.right = Vector_CrossProduct(this.up, this.direction)
+		this.right = LinearAlgebra.Vector3_CrossProduct(this.up, this.direction)
 	}
 
 	// Roll the camera about it's forward directional axis
@@ -214,18 +205,18 @@ export class Camera {
 		var Qconj = Q.Qconjugate();
 
 		// Cumulate the rotation
-		this.rotation.Qmul(Qconj)
+		this.rotation = LinearAlgebra.Quaternion_Mul_Q(this.rotation, Qconj);
 
 		// Perform the rotation
-		var Q1 = Quaternion_Mul_V(Q, this.up);
-		Q = Quaternion_Mul_Q(Q1, Qconj);
+		var Q1 = LinearAlgebra.Quaternion_Mul_V(Q, this.up);
+		Q = LinearAlgebra.Quaternion_Mul_Q(Q1, Qconj);
 		Q.normalize()
 		this.up.x = Q.x;
 		this.up.y = Q.y;
 		this.up.z = Q.z;
 
 		// Update the right vector
-		this.right = Vector_CrossProduct(this.up, this.direction)
+		this.right = LinearAlgebra.Vector3_CrossProduct(this.up, this.direction)
 	}
 
 	// Pitch the camera up about it's right axis
@@ -238,26 +229,26 @@ export class Camera {
 		var Qconj = Q.Qconjugate();
 
 		// Cumulate the rotation
-		this.rotation.Qmul(Qconj)
+		this.rotation = LinearAlgebra.Quaternion_Mul_Q(this.rotation, Qconj);
 
 		// Perform the rotation
 		var Qconj = Q.Qconjugate();
-		var Q1 = Quaternion_Mul_V(Q, this.direction);
-		Q = Quaternion_Mul_Q(Q1, Qconj);
+		var Q1 = LinearAlgebra.Quaternion_Mul_V(Q, this.direction);
+		Q = LinearAlgebra.Quaternion_Mul_Q(Q1, Qconj);
 		Q.normalize()
 		this.direction.x = Q.x;
 		this.direction.y = Q.y;
 		this.direction.z = Q.z;
 
 		// Update the up vector
-		this.up = Vector_CrossProduct(this.direction, this.right)
+		this.up = LinearAlgebra.Vector3_CrossProduct(this.direction, this.right)
 	}
 
 	Triangle_WorldTransform(tri){
 		// Move and rotate the triangle relative to the camera
 
 		// 1. TRANSFORM THE TRIANGLE RELATIVE TO THE CAMERA POSITION
-		var pTranslated = new Array()
+		var pTranslated = new Array<Vector3>()
 		pTranslated[0] = tri.vert[0].sub(this.position);		// Find the vector from camera to point
 		pTranslated[1] = tri.vert[1].sub(this.position);		// Find the vector from camera to point
 		pTranslated[2] = tri.vert[2].sub(this.position);		// Find the vector from camera to point
@@ -270,26 +261,21 @@ export class Camera {
 
 		// To rotate point p using rotation quaternion q: 
 			// p' = q * p * qconj
-		var pTransformed = new Array()
-		pTransformed[0] = Quaternion_Mul_Q_V(Quaternion_Mul_V(Qrot, pTranslated[0]), Qconj);
-		pTransformed[1] = Quaternion_Mul_Q_V(Quaternion_Mul_V(Qrot, pTranslated[1]), Qconj);
-		pTransformed[2] = Quaternion_Mul_Q_V(Quaternion_Mul_V(Qrot, pTranslated[2]), Qconj);
+		var pTransformed = new Array<Vector3>()
+		pTransformed[0] = LinearAlgebra.Quaternion_Mul_Q_V(LinearAlgebra.Quaternion_Mul_V(Qrot, pTranslated[0]), Qconj);
+		pTransformed[1] = LinearAlgebra.Quaternion_Mul_Q_V(LinearAlgebra.Quaternion_Mul_V(Qrot, pTranslated[1]), Qconj);
+		pTransformed[2] = LinearAlgebra.Quaternion_Mul_Q_V(LinearAlgebra.Quaternion_Mul_V(Qrot, pTranslated[2]), Qconj);
 
-		var out_tri = new Triangle()
-		out_tri.vert[0] = pTransformed[0];
-		out_tri.vert[1] = pTransformed[1];
-		out_tri.vert[2] = pTransformed[2];
-		out_tri.color = tri.color;
-
+		var out_tri = new Triangle(pTransformed[0], pTransformed[1], pTransformed[2]);
 		return out_tri;
 	}
 
 	Triangle_ClipAgainstPlane(plane_p, plane_n_, in_tri) : Array<Triangle>
 	{
 		if (in_tri == null){
-			return new Array<Triangle>;
+			return new Array<Triangle>();
 		}
-		var plane_n = Vector_Normalize(plane_n_);
+		var plane_n = LinearAlgebra.Vector3_Normalize(plane_n_);
 
 		// Create two temporary storage arrays to classify points either side of plane
 		// If distance sign is positive, point lies on "inside" of plane
@@ -300,8 +286,8 @@ export class Camera {
 		function dist(p)
 		{
 			n = new Vector3()
-			var n = Vector_Normalize(p);
-			return (plane_n.x * p.x + plane_n.y * p.y + plane_n.z * p.z - Vector_DotProduct(plane_n, plane_p));
+			var n = LinearAlgebra.Vector3_Normalize(p);
+			return (plane_n.x * p.x + plane_n.y * p.y + plane_n.z * p.z - LinearAlgebra.Vector3_DotProduct(plane_n, plane_p));
 		};
 
 		// Get signed distance of each point in triangle to plane
@@ -320,14 +306,14 @@ export class Camera {
 		// smaller output triangles if required. There are four possible
 		// outcomes...
 
-		var out_tri = new Array<Triangle>;
+		var out_tri = new Array<Triangle>();
 		out_tri[0] = new Triangle();
 
 		if (nInsidePointCount == 0)
 		{
 			// All points lie on the outside of plane, so clip whole triangle
 
-			return new Array<Triangle>; // No returned triangles are valid
+			return new Array<Triangle>(); // No returned triangles are valid
 		}
 
 		if (nInsidePointCount == 3)
@@ -342,43 +328,36 @@ export class Camera {
 			// Triangle should be clipped. As two points lie outside
 			// the plane, the triangle becomes a smaller triangle
 
-			// Copy appearance info to new triangle
-			out_tri[0].color =  in_tri.color
-
 			// The inside point is valid, so keep that...
 			out_tri[0].vert[0] = inside_points[0];
 
 			// but the two new points are at the locations where the 
 			// original sides of the triangle (lines) intersect with the plane
-			out_tri[0].vert[1] = Vector_IntersectPlane(plane_p, plane_n, inside_points[0], outside_points[0]);
-			out_tri[0].vert[2] = Vector_IntersectPlane(plane_p, plane_n, inside_points[0], outside_points[1]);
+			out_tri[0].vert[1] = LinearAlgebra.Vector3_IntersectPlane(plane_p, plane_n, inside_points[0], outside_points[0]);
+			out_tri[0].vert[2] = LinearAlgebra.Vector3_IntersectPlane(plane_p, plane_n, inside_points[0], outside_points[1]);
 
 			return out_tri; // Return the newly formed single triangle
 		}
 
 		if (nInsidePointCount == 2 && nOutsidePointCount == 1)
 		{
-			out_tri[1] = new Triangle()
+			out_tri[1] = new Triangle();
 			// Triangle should be clipped. As two points lie inside the plane,
 			// thr triangle will be clipped into two new triangles
-
-			// Copy appearance info to new triangles
-			out_tri[0].color =  in_tri.color
-			out_tri[1].color =  in_tri.color
 
 			// The first triangle consists of the two inside points and a new
 			// point determined by the location where one side of the triangle
 			// intersects with the plane
 			out_tri[0].vert[0] = inside_points[0];
 			out_tri[0].vert[1] = inside_points[1];
-			out_tri[0].vert[2] = Vector_IntersectPlane(plane_p, plane_n, inside_points[0], outside_points[0]);
+			out_tri[0].vert[2] = LinearAlgebra.Vector3_IntersectPlane(plane_p, plane_n, inside_points[0], outside_points[0]);
 
 			// The second triangle is composed of one of he inside points, a
 			// new point determined by the intersection of the other side of the 
 			// triangle and the plane, and the newly created point above
 			out_tri[1].vert[0] = inside_points[1];
 			out_tri[1].vert[1] = out_tri[0].vert[2];
-			out_tri[1].vert[2] = Vector_IntersectPlane(plane_p, plane_n, inside_points[1], outside_points[0]);
+			out_tri[1].vert[2] = LinearAlgebra.Vector3_IntersectPlane(plane_p, plane_n, inside_points[1], outside_points[0]);
 
 			return out_tri; // Return two newly formed triangles which form a quad
 		}
@@ -388,9 +367,9 @@ export class Camera {
 		var tri_projected = new Triangle()
 
 		// Project the points onto the plane 1 unit in front of the camera
-		tri_projected.vert[0] = Vector_IntersectPlane(new Vector3(0.0, 0.0, 1.0), new Vector3(0.0, 0.0, 1.0), new Vector3(0.0, 0.0, 0.0), tri.vert[0])
-		tri_projected.vert[1] = Vector_IntersectPlane(new Vector3(0.0, 0.0, 1.0), new Vector3(0.0, 0.0, 1.0), new Vector3(0.0, 0.0, 0.0), tri.vert[1])
-		tri_projected.vert[2] = Vector_IntersectPlane(new Vector3(0.0, 0.0, 1.0), new Vector3(0.0, 0.0, 1.0), new Vector3(0.0, 0.0, 0.0), tri.vert[2])
+		tri_projected.vert[0] = LinearAlgebra.Vector3_IntersectPlane(new Vector3(0.0, 0.0, 1.0), new Vector3(0.0, 0.0, 1.0), new Vector3(0.0, 0.0, 0.0), tri.vert[0])
+		tri_projected.vert[1] = LinearAlgebra.Vector3_IntersectPlane(new Vector3(0.0, 0.0, 1.0), new Vector3(0.0, 0.0, 1.0), new Vector3(0.0, 0.0, 0.0), tri.vert[1])
+		tri_projected.vert[2] = LinearAlgebra.Vector3_IntersectPlane(new Vector3(0.0, 0.0, 1.0), new Vector3(0.0, 0.0, 1.0), new Vector3(0.0, 0.0, 0.0), tri.vert[2])
 
 		// Scale and set point depth accordingly
 		for (var j = 0; j < 3; j++)
@@ -402,8 +381,7 @@ export class Camera {
 	
 		// Determine average depth of the triangle
 		// This is not perfect, but works 99% of the time
-		tri_projected.depth = (tri_projected.vert[0].z + tri_projected.vert[1].z + tri_projected.vert[2].z)/3
-		tri_projected.color = tri.color
+		// tri_projected.depth = (tri_projected.vert[0].z + tri_projected.vert[1].z + tri_projected.vert[2].z)/3
 
 		// If the queue is empty, simply push
 		if (this.triangleQueue.length == 0){
@@ -413,12 +391,12 @@ export class Camera {
 		
 		// If the queue is not empty, sort and push
 		else{
-			for(var i = 0; i < this.triangleQueue.length; i++){
-				if(tri_projected.depth > this.triangleQueue[i].depth){
-					this.triangleQueue.splice(i, 0, tri_projected);
-					return 1;
-				}
-			}
+			// for(var i = 0; i < this.triangleQueue.length; i++){
+			// 	if(tri_projected.depth > this.triangleQueue[i].depth){
+			// 		this.triangleQueue.splice(i, 0, tri_projected);
+			// 		return 1;
+			// 	}
+			// }
 			this.triangleQueue.push(tri_projected);
 			return 1;
 		}

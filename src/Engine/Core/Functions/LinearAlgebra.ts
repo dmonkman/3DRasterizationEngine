@@ -1,7 +1,6 @@
-import { Vector3 } from "../Basic/Vector3";
-import { Vector4 } from "../Basic/Vector4";
-import { Quaternion } from "./Quaternion";
-import { Axis } from "./Axis";
+import { Vector3 } from "../Structs/index.js";
+import { Quaternion } from "../Geometry/index.js";
+import { Axis } from "../Geometry/index.js";
 
 export namespace LinearAlgebra{
     export function Quaternion_Mul_Q(q1: Quaternion, q2: Quaternion): Quaternion{
@@ -87,37 +86,28 @@ export namespace LinearAlgebra{
     export function Vector3_Rotate(v: Vector3, angleRadians: number, axis: Axis){
         if(angleRadians != 0){	
             axis.direction.normalize();
-            this.x -= axis.position.x;
-            this.y -= axis.position.y;
-            this.z -= axis.position.z;
+            let v_translated = new Vector3(v.x - axis.position.x, v.y - axis.position.y, v.z - axis.position.z);
             var sinAngle = Math.sin(angleRadians/2);
             var Q = new Quaternion(Math.cos(angleRadians/2), sinAngle*axis.direction.x, sinAngle*axis.direction.y, sinAngle*axis.direction.z);
             var Qconj = Q.Qconjugate();
-            Quaternion_Mul_V(Q, v);
-            Quaternion_Mul_Q(Q, Qconj);
-            this.x = Q.x;
-            this.y = Q.y;
-            this.z = Q.z;
-            this.x += axis.position.x;
-            this.y += axis.position.y;
-            this.z += axis.position.z;
+            Q = Quaternion_Mul_V(Q, v_translated);
+            Q = Quaternion_Mul_Q(Q, Qconj);
+            return new Vector3(Q.x + axis.position.x, Q.y + axis.position.y, Q.z + axis.position.z);
         }
-        return this;
+        return v;
     }
 
-    export function Vector3_RotateAboutOrigin(v: Vector3, angleRadians: number){
+    export function Vector3_RotateAboutOrigin(v: Vector3, angleRadians: number, direction: Vector3){
         // Rotate about a vector pointing from the origin
         if(angleRadians != 0){	
-            v.normalize();
+            direction.normalize();
             var sinAngle: number = Math.sin(angleRadians/2);
-            var Q = new Quaternion(Math.cos(angleRadians/2), sinAngle*v.x, sinAngle*v.y, sinAngle*v.z);
+            var Q = new Quaternion(Math.cos(angleRadians/2), sinAngle*direction.x, sinAngle*direction.y, sinAngle*direction.z);
             var Qconj = Quaternion_Conjugate(Q);
-            Quaternion_Mul_V(Q, v);
-            Quaternion_Mul_Q(Q, Qconj);
-            this.x = Q.x;
-            this.y = Q.y;
-            this.z = Q.z;
+            Q = Quaternion_Mul_V(Q, v);
+            Q = Quaternion_Mul_Q(Q, Qconj);
+            return new Vector3(Q.x, Q.y, Q.z);
         }
-        return this;
+        return v;
     }
 }
